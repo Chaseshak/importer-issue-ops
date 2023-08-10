@@ -1,0 +1,98 @@
+name: branches-master
+on:
+  push:
+    branches: master
+env:
+  important_workspace_env: "${{ secrets.important_workspace_env }}"
+  queen: workspace
+  king: "${{ secrets.king }}"
+jobs:
+  parallel_job_1:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Cache node
+      uses: actions/cache@v3.3.1
+      with:
+        key: "${{ runner.os }}-node-${{ hashFiles('node_modules') }}"
+        path: node_modules
+    - name: Build and Test
+      run: |-
+        npm install
+        npm test
+        apt update && apt install zip
+        zip -r app-$BITBUCKET_BUILD_NUMBER.zip . -x *.git* bitbucket-pipelines.yml
+    - uses: actions/upload-artifact@v3.1.1
+      with:
+        name: parallel_job_1
+        path: "*.zip"
+  parallel_job_2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - uses: actions/checkout@v3.5.0
+      with:
+        path: git-secrets
+        repository: awslabs/git-secrets
+    - run: |
+        cd git-secrets
+        sudo make install
+        git secrets --register-aws --global
+        cd ..
+    # This transformed result does custom secret scanning using AWS, however the recommended way
+    # to do this is to use the GitHub secret scanning feature.
+    # See https://docs.github.com/en/code-security/secret-scanning/protecting-pushes-with-secret-scanning for more information.
+    - run: git secrets --scan --recursive .
+  step_job_3:
+    runs-on: ubuntu-latest
+    needs:
+    - parallel_job_2
+    - parallel_job_1
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - uses: aws-actions/configure-aws-credentials@v2.2.0
+      with:
+        aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+        aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        aws-region: "${{ secrets.AWS_DEFAULT_REGION }}"
+    - uses: actions/download-artifact@v3.0.1
+      with:
+        name: parallel_job_1
+    - run: aws s3 sync s3://${{ secrets.S3_BUCKET }} --cache-control max-age=31536000 --content-encoding gzip --acl public-read --expires 2021-12-31T23:59:59Z --storage-class STANDARD --delete --dryrun --only-show-errors
+    - uses: aws-actions/aws-cloudformation-github-deploy@v1.2.0
+      with:
+        name: my-stack-name
+        template: https://s3.amazonaws.com/cfn-deploy-pipe/cfn-template.json
+        capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
+        parameter-overrides: KeyName=mykey,DBUser=mydbuser,DBPassword=$DB_PASSWORD
+        tags: Environment=TEST,Application=myApp
+#     # This item has no matching transformer
+#     - identifier: atlassian/aws-elasticbeanstalk-deploy:1.1.1
+#       name: AWS Deploys
+#       variables:
+#         AWS_ACCESS_KEY_ID: "$AWS_ACCESS_KEY_ID"
+#         AWS_SECRET_ACCESS_KEY: "$AWS_SECRET_ACCESS_KEY"
+#         AWS_DEFAULT_REGION: us-east-1
+#         APPLICATION_NAME: Myawesomeapp
+#         ENVIRONMENT_NAME: Myawesomeapp-env-1
+#         ZIP_FILE: Myawesomeapp.zip
+  step_job_4:
+    runs-on: ubuntu-latest
+    environment: Production
+    needs:
+    - step_job_3
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - uses: actions/download-artifact@v3.0.1
+      with:
+        name: parallel_job_1
+#     # This item has no matching transformer
+#     - identifier: atlassian/azure-web-apps-deploy:1.0.1
+#       name: Deploy to Production
+#       variables:
+#         AZURE_APP_ID: "$AZURE_APP_ID"
+#         AZURE_PASSWORD: "$AZURE_PASSWORD"
+#         AZURE_TENANT_ID: "$AZURE_TENANT_ID"
+#         AZURE_RESOURCE_GROUP: "$AZURE_RESOURCE_GROUP"
+#         AZURE_APP_NAME: "$AZURE_APP_NAME"
+#         ZIP_FILE: app-$BITBUCKET_BUILD_NUMBER.zip
