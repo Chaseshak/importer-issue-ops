@@ -1,0 +1,115 @@
+name: branches-after-script
+on:
+  push:
+    branches: after-script
+env:
+  important_workspace_env: "${{ secrets.important_workspace_env }}"
+  queen: workspace
+  king: "${{ secrets.king }}"
+jobs:
+  parallel_job_1:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - uses: actions/setup-node@v3.7.0
+      with:
+        registry-url: https://my-registry.com
+    - run: npm publish my/dist --tag 1.2.3 --dry-run
+      env:
+        NODE_AUTH_TOKEN: "${{ secrets.NPM_TOKEN }}"
+  parallel_job_2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Install
+      run: |-
+        gem install bundler
+        gem install rspec
+        echo "installed gems"
+  parallel_job_3:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+      with:
+        fetch-depth: 0
+    - name: Check for file changes
+      id: check-changes-b40d17d9
+      run: |
+        if git diff --name-only HEAD^ HEAD | grep -qE '^.*.*/.*$'; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+    - name: Notify
+      run: echo "Sending Slack message"
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' }}"
+    - uses: slackapi/slack-github-action@v1.24.0
+      env:
+        SLACK_WEBHOOK_URL: "${{ secrets.SLACK_WEBHOOK_URL }}"
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      with:
+        payload: |
+          {
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": Hello!
+                }
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": Goodbye!
+                }
+              }
+            ]
+          }
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' }}"
+    - name: Notify
+      run: echo "Sent the Slack message"
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' }}"
+    - name: Notify
+      run: |-
+        echo "I'm after the script ran!"
+        echo "We should be grouped!"
+      id: after-script-1
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' && always() }}"
+    - uses: slackapi/slack-github-action@v1.24.0
+      env:
+        SLACK_WEBHOOK_URL: "${{ secrets.SLACK_WEBHOOK_URL }}"
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      with:
+        payload-file-path: payload.json
+      id: after-script-2
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' && steps.after-script-1.conclusion == 'success' && always() }}"
+    - uses: actions/checkout@v3.5.0
+      with:
+        path: git-secrets
+        repository: awslabs/git-secrets
+      id: after-script-3
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' && steps.after-script-2.conclusion == 'success' && always() }}"
+    - run: |
+        cd git-secrets
+        sudo make install
+        git secrets --register-aws --global
+        cd ..
+      id: after-script-4
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' && steps.after-script-3.conclusion == 'success' && always() }}"
+    # This transformed result does custom secret scanning using AWS, however the recommended way
+    # to do this is to use the GitHub secret scanning feature.
+    # See https://docs.github.com/en/code-security/secret-scanning/protecting-pushes-with-secret-scanning for more information.
+    - run: git secrets --scan --recursive glob/**/*.rb
+      id: after-script-5
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' && steps.after-script-4.conclusion == 'success' && always() }}"
+    - name: Notify
+      run: |-
+        echo "this is really the end"
+        echo "goodbye, for now!"
+      id: after-script-6
+      if: "${{ steps.check-changes-b40d17d9.outputs.changed == 'true' && steps.after-script-5.conclusion == 'success' && always() }}"
