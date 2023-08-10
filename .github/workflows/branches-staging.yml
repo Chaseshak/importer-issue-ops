@@ -1,0 +1,26 @@
+name: branches-staging
+on:
+  push:
+    branches: staging
+env:
+  important_workspace_env: "${{ secrets.important_workspace_env }}"
+  queen: workspace
+  king: "${{ secrets.king }}"
+jobs:
+  step_job_1:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Build and test
+      run: sh ./build-app.sh
+  stage_job_2:
+    runs-on: ubuntu-latest
+    environment: staging
+    needs:
+    - step_job_1
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Deploy
+      run: sh ./deploy-app.sh
+    - name: Run end-to-end tests
+      run: sh ./run-e2e-tests.sh
