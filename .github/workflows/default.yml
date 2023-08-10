@@ -1,0 +1,46 @@
+name: default
+on:
+  push:
+    branches:
+    - "!staging"
+    - "!ruby"
+    - "!master"
+    - "!after-script"
+env:
+  important_workspace_env: "${{ secrets.important_workspace_env }}"
+  queen: workspace
+  king: "${{ secrets.king }}"
+jobs:
+  parallel_job_1:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Cache node
+      uses: actions/cache@v3.3.1
+      with:
+        key: "${{ runner.os }}-node-${{ hashFiles('node_modules') }}"
+        path: node_modules
+    - name: Build and Test
+      run: |-
+        npm install
+        npm test
+  parallel_job_2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Cache node
+      uses: actions/cache@v3.3.1
+      with:
+        key: "${{ runner.os }}-node-${{ hashFiles('node_modules') }}"
+        path: node_modules
+    - name: Code linting
+      run: |-
+        npm install eslint
+        npx eslint .
+    services:
+      my-mariadb:
+        image: mariadb:latest
+        env:
+          MARIADB_USER: "$MY_MARIADB_USER"
+          MARIADB_PASSWORD: "$MY_MARIADB_PASSWORD"
+          MARIADB_ROOT_PASSWORD: "$MARIADB_ADMIN_PASSWORD"
