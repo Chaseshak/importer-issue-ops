@@ -15,7 +15,8 @@ class Provider
     "gitlab"       => ::GitlabCI,
     "jenkins"      => ::Jenkins,
     "travis-ci"    => ::TravisCI,
-    "bamboo"       => ::Bamboo
+    "bamboo"       => ::Bamboo,
+    "bitbucket"    => ::Bitbucket
   }.freeze
 
   def initialize(labels)
