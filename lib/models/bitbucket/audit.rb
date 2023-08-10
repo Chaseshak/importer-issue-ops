@@ -11,7 +11,7 @@ module Bitbucket
     def to_a
       return if @workspace.nil?
 
-      [["--workspace", @workspace]]
+      [["--workspace", @workspace], ["--experimental"]]
     end
   end
 end

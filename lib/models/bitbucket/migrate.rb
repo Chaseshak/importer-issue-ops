@@ -11,7 +11,7 @@ module Bitbucket
     end
 
     def to_a
-      args = []
+      args = [["--experimental"]]
       args.push(["--workspace", @workspace]) unless @workspace.nil?
       args.push(["--repository", @repository]) unless @repository.nil?
       args.push(["--target-url", @target_url]) unless @target_url.nil?
