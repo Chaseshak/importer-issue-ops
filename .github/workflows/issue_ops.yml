@@ -81,6 +81,8 @@ jobs:
             echo "Unable to determine command"
             exit 1
           fi
+      - name: (tmp) Add Bitbucket to env file
+        run: echo BITBUCKET_ACCESS_TOKEN=${{ secrets.BITBUCKET_ACCESS_TOKEN }} >> .env.local
       - name: execute actions-importer
         run: |
           gh actions-importer ${{ steps.prepare.outputs.command }} ${{ steps.prepare.outputs.provider }} \
