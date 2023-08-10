@@ -1,0 +1,22 @@
+name: branches-ruby
+on:
+  push:
+    branches: ruby
+env:
+  important_workspace_env: "${{ secrets.important_workspace_env }}"
+  queen: workspace
+  king: "${{ secrets.king }}"
+jobs:
+  step_job_1:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3.5.0
+    - name: Cache bundler-packages
+      uses: actions/cache@v3.3.1
+      with:
+        key: UPDATE_ME
+        path: UPDATE_ME
+    - name: Build and Test
+      run: |-
+        bundle install --path vendor/bundle
+        bundle exec rake
